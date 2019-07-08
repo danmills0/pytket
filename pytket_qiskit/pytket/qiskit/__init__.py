@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Module for conversion between IBM Qiskit and :math:`\\mathrm{t|ket}\\rangle` primitives."""
-from .dagcircuit_convert import dagcircuit_to_tk, tk_to_dagcircuit
+from .dagcircuit_convert import dagcircuit_to_tk, tk_to_dagcircuit, tk_to_named_dagcircuit
 from .tket_pass import TketPass

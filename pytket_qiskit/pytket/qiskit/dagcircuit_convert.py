@@ -289,6 +289,47 @@ def tk_to_dagcircuit(circ:Union[Circuit, PhysicalCircuit],_qreg_name:str="q") ->
     dc.cregs = OrderedDict(sorted(dc.cregs.items(), key = lambda x: int(x[0][1:])))
     return dc
 
+def tk_to_named_dagcircuit(circ_name,circ:Union[Circuit, PhysicalCircuit],_qreg_name:str="q") -> DAGCircuit :
+    """
+       Convert a :math:`\\mathrm{t|ket}\\rangle` :py:class:`Circuit` to a :py:class:`qiskit.DAGCircuit` . Requires
+       that the circuit only conatins :py:class:`OpType` s from the qelib set.
+    
+    :param circ: A circuit to be converted
+
+    :return: The converted circuit
+    """
+
+    if isinstance(circ, PhysicalCircuit) :
+        c = circ._get_circuit()
+    else :
+        c = circ
+    dc = DAGCircuit()
+    dc.name = circ_name
+    qreg = QuantumRegister(c.n_qubits, name=_qreg_name)
+    dc.add_qreg(qreg)
+    in_boundary = c._get_boundary()[0]
+    out_boundary = c._get_boundary()[1]
+    for command in c:
+        o = command.op
+        qargs = [ (qreg, i) for i in command.qubits ]
+        gate, cargs, params = _translate_ops(c,o,qargs)
+        if cargs :
+            _extend_cregs(dc,cargs)
+        if gate :
+            ins = gate(*list(map(_normalise_param_out, params)))
+            dc.apply_operation_back(ins ,qargs=qargs,
+                                    cargs=cargs)
+    tk2dg_outs = {}
+    
+    for i, v in enumerate(out_boundary):
+        tk2dg_outs[v] = dc.output_map[(qreg, i)]
+    for i, v in enumerate(out_boundary):
+        dc._multi_graph.node[tk2dg_outs[v]]["wire"] = [(qreg, i)]
+        dc.output_map[(qreg, i)] = tk2dg_outs[v]
+    # Force order of shot readout to be in qubit/register name order
+    dc.cregs = OrderedDict(sorted(dc.cregs.items(), key = lambda x: int(x[0][1:])))
+    return dc
+
 def _paths_to_qubits_bis(paths,qreg_name="q") :
     lut = {}
     for i in range(len(paths)) :

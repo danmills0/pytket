@@ -18,7 +18,7 @@ from qiskit.compiler import assemble
 from qiskit.providers.aer.noise import NoiseModel
 
 from pytket.backends import Backend
-from pytket.qiskit import tk_to_dagcircuit
+from pytket.qiskit import tk_to_dagcircuit, tk_to_named_dagcircuit
 from pytket.backends.measurements import bin_str_2_table
 from pytket._circuit import Circuit
 from pytket._transform import Transform
@@ -35,7 +35,7 @@ class AerBackend(Backend) :
         """
         self._backend = Aer.get_backend('qasm_simulator')
         self.noise_model = noise_model
-    
+ 
     def run(self, circuit:Circuit, shots:int, fit_to_constraints=True, seed:int=None) -> np.ndarray:
         """Run a circuit on Qiskit Aer Qasm simulator.
         
@@ -59,6 +59,29 @@ class AerBackend(Backend) :
         job = self._backend.run(qobj, noise_model=self.noise_model)
         return bin_str_2_table(job.result().get_memory(qc))
 
+    def run_return_result(self, circuit:Circuit, shots:int, fit_to_constraints=True, seed:int=None, circ_name="name") -> np.ndarray:
+        """Run a circuit on Qiskit Aer Qasm simulator.
+        
+        :param circuit: The circuit to run
+        :type circuit: Circuit
+        :param shots: Number of shots (repeats) to run
+        :type shots: int
+        :param fit_to_constraints: Compile the circuit to meet the contstraints of the backend, defaults to True
+        :type fit_to_constraints: bool, optional
+        :param seed: random seed to for simulator
+        :type seed: int
+        :return: Table of shot results, each row is a shot, columns are ordered by qubit ordering. Values are 0 or 1, corresponding to qubit basis states.
+        :rtype: numpy.ndarray
+        """
+        c = circuit.copy()
+        if fit_to_constraints :
+            Transform.RebaseToQiskit().apply(c)
+        dag = tk_to_named_dagcircuit(circ_name,c)
+        qc = dag_to_circuit(dag)
+        qobj = assemble(qc, shots=shots, seed_simulator=seed, memory=True)
+        job = self._backend.run(qobj, noise_model=self.noise_model)
+        return job.result()
+
 class AerStateBackend(Backend) :
     def __init__(self) :
         self._backend = Aer.get_backend('statevector_simulator')
@@ -79,6 +102,23 @@ class AerStateBackend(Backend) :
         qobj = assemble(qc)
         job = self._backend.run(qobj)
         return np.asarray(job.result().get_statevector(qc, decimals=16))
+
+    def get_state_result(self, circuit, fit_to_constraints=True, circ_name="name") :
+        """
+        Calculate the statevector for a circuit.
+
+
+        :param circuit: circuit to calculate
+        :return: complex numpy array of statevector
+        """
+        c = circuit.copy()
+        if fit_to_constraints :
+            Transform.RebaseToQiskit().apply(c)
+        dag = tk_to_named_dagcircuit(circ_name,c)
+        qc = dag_to_circuit(dag)
+        qobj = assemble(qc)
+        job = self._backend.run(qobj)
+        return job.result()
     
     def run(self, circuit, shots, fit_to_constraints=True) :
         pass
