@@ -80,7 +80,7 @@ class AerBackend(Backend) :
         counts = job.result().get_counts(qc)
         return {tuple(_convert_bin_str(b)) : c for b, c in counts.items()}
 
-    def run_return_result(self, circuit:Circuit, shots:int, fit_to_constraints=True, seed:int=None, circ_name="name") -> np.ndarray:
+    def raw_run_return_result(self, circuit:Circuit, shots:int, circ_name:str, seed:int=None) -> np.ndarray:
         """Run a circuit on Qiskit Aer Qasm simulator.
         
         :param circuit: The circuit to run
@@ -95,8 +95,6 @@ class AerBackend(Backend) :
         :rtype: numpy.ndarray
         """
         c = circuit.copy()
-        if fit_to_constraints :
-            Transform.RebaseToQiskit().apply(c)
         dag = tk_to_named_dagcircuit(circ_name,c)
         qc = dag_to_circuit(dag)
         qobj = assemble(qc, shots=shots, seed_simulator=seed, memory=True)
@@ -124,7 +122,7 @@ class AerStateBackend(Backend) :
         job = self._backend.run(qobj)
         return np.asarray(job.result().get_statevector(qc, decimals=16))
 
-    def get_state_result(self, circuit, fit_to_constraints=True, circ_name="name") :
+    def raw_get_state_result(self, circuit, circ_name:str) :
         """
         Calculate the statevector for a circuit.
 
@@ -133,8 +131,6 @@ class AerStateBackend(Backend) :
         :return: complex numpy array of statevector
         """
         c = circuit.copy()
-        if fit_to_constraints :
-            Transform.RebaseToQiskit().apply(c)
         dag = tk_to_named_dagcircuit(circ_name,c)
         qc = dag_to_circuit(dag)
         qobj = assemble(qc)
